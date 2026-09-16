@@ -1,0 +1,286 @@
+import express from 'express';
+import multer from 'multer';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import dotenv from 'dotenv';
+import { pool } from './db.js';
+
+dotenv.config();
+
+const app = express();
+const PORT = Number(process.env.PORT) || 5000;
+const uploadsDirectory = path.resolve('uploads');
+
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
+app.use('/uploads', express.static(uploadsDirectory));
+
+fs.mkdirSync(uploadsDirectory, { recursive: true });
+const hashFilePath = (filePath) => crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+
+const createTables = async () => {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS documents (
+            id SERIAL PRIMARY KEY,
+            title TEXT NOT NULL,
+            revision TEXT,
+            uploader_name TEXT NOT NULL,
+            uploader_position TEXT,
+            uploader_phone TEXT,
+            uploader_email TEXT NOT NULL,
+            file_url TEXT NOT NULL,
+            file_name TEXT,
+            file_hash TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS markups (
+            id SERIAL PRIMARY KEY,
+            document_id INTEGER REFERENCES documents(id) ON DELETE CASCADE,
+            commentor_name TEXT NOT NULL,
+            commentor_position TEXT,
+            commentor_phone TEXT,
+            commentor_email TEXT NOT NULL,
+            x_coord INTEGER,
+            y_coord INTEGER,
+            comment TEXT NOT NULL,
+            parent_id INTEGER,
+            fixed_file_url TEXT,
+            fixed_file_name TEXT,
+            fixed_file_hash TEXT,
+            fixed_revision TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS parent_id INTEGER');
+    await pool.query('ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_name TEXT');
+    await pool.query('ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_hash TEXT');
+    await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_file_url TEXT');
+    await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_file_name TEXT');
+    await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_file_hash TEXT');
+    await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_revision TEXT');
+
+    await pool.query(`
+        UPDATE documents
+        SET file_name = LOWER(REGEXP_REPLACE(file_url, '^/uploads/[0-9]+-', ''))
+        WHERE file_name IS NULL
+    `);
+    await pool.query(`
+        UPDATE markups
+        SET fixed_file_name = LOWER(REGEXP_REPLACE(fixed_file_url, '^/uploads/[0-9]+-', ''))
+        WHERE fixed_file_name IS NULL AND fixed_file_url IS NOT NULL
+    `);
+
+    const { rows: documents } = await pool.query('SELECT id, file_url FROM documents WHERE file_hash IS NULL');
+    for (const document of documents) {
+        const filePath = path.resolve(uploadsDirectory, path.basename(document.file_url));
+        if (fs.existsSync(filePath)) {
+            await pool.query('UPDATE documents SET file_hash = $1 WHERE id = $2', [hashFilePath(filePath), document.id]);
+        }
+    }
+
+    const { rows: markups } = await pool.query('SELECT id, fixed_file_url FROM markups WHERE fixed_file_hash IS NULL AND fixed_file_url IS NOT NULL');
+    for (const markup of markups) {
+        const filePath = path.resolve(uploadsDirectory, path.basename(markup.fixed_file_url));
+        if (fs.existsSync(filePath)) {
+            await pool.query('UPDATE markups SET fixed_file_hash = $1 WHERE id = $2', [hashFilePath(filePath), markup.id]);
+        }
+    }
+
+    const { rows: remainingDocuments } = await pool.query('SELECT id FROM documents ORDER BY id');
+    if (remainingDocuments.length === 1 && remainingDocuments[0].id !== 1) {
+        const oldDocumentId = remainingDocuments[0].id;
+        await pool.query('BEGIN');
+        try {
+            await pool.query('ALTER TABLE markups DROP CONSTRAINT IF EXISTS markups_document_id_fkey');
+            await pool.query('UPDATE documents SET id = 1 WHERE id = $1', [oldDocumentId]);
+            await pool.query('UPDATE markups SET document_id = 1 WHERE document_id = $1', [oldDocumentId]);
+            await pool.query('ALTER TABLE markups ADD CONSTRAINT markups_document_id_fkey FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE');
+            await pool.query("SELECT setval(pg_get_serial_sequence('documents', 'id'), 1, true)");
+            await pool.query('COMMIT');
+        } catch (error) {
+            await pool.query('ROLLBACK');
+            throw error;
+        }
+    }
+};
+
+const storage = multer.diskStorage({
+    destination: (_req, _file, callback) => callback(null, uploadsDirectory),
+    filename: (_req, file, callback) => callback(null, `${Date.now()}-${file.originalname}`)
+});
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, callback) => {
+        const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+        const extension = path.extname(file.originalname).toLowerCase();
+        callback(null, allowedExtensions.includes(extension));
+    }
+});
+
+const phoneRegex = /^\(\d{3}\)\d{3}-\d{4}$/;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const isCapitalizedPhrase = (value) => value.trim().split(/\s+/).every((word) => /^[A-Z]/.test(word));
+
+const validatePerson = (name, position, email, phone) => {
+    if (!name || !position || !email) return 'Name, position, and email are required.';
+    if (!isCapitalizedPhrase(name) || !isCapitalizedPhrase(position)) {
+        return 'Names and positions must start each word with an uppercase letter.';
+    }
+    if (!emailRegex.test(email)) return 'Invalid email address format.';
+    if (phone && !phoneRegex.test(phone)) return 'Invalid phone number format. Expected (xxx)xxx-xxxx.';
+    return null;
+};
+
+const getFileHash = (file) => hashFilePath(file.path);
+const normalizeFileName = (fileName) => fileName.trim().toLowerCase();
+const removeUploadedFile = (file) => {
+    if (file) fs.rmSync(file.path, { force: true });
+};
+
+const findDuplicateDocument = async (fileName, fileHash, revision) => {
+    const { rows } = await pool.query(
+        `SELECT 1 FROM documents
+         WHERE file_hash = $1 OR (file_name = $2 AND COALESCE(revision, '') = $3)
+         LIMIT 1`,
+        [fileHash, fileName, revision]
+    );
+    return rows.length > 0;
+};
+
+const findDuplicateFixedFile = async (fileName, fileHash, revision) => {
+    const { rows } = await pool.query(
+        `SELECT 1 FROM documents
+         WHERE file_name = $1 AND COALESCE(revision, '') = $2
+         UNION ALL
+         SELECT 1 FROM markups
+         WHERE (fixed_file_name = $1 AND COALESCE(fixed_revision, '') = $2)
+            OR (fixed_file_hash = $3 AND COALESCE(fixed_revision, '') = $2)
+         LIMIT 1`,
+        [fileName, revision, fileHash]
+    );
+    return rows.length > 0;
+};
+
+app.get('/api/documents', async (_req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT * FROM documents ORDER BY created_at DESC');
+        res.json({ documents: rows });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.get('/api/documents/:id', async (req, res) => {
+    try {
+        const documentResult = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
+        const document = documentResult.rows[0];
+        if (!document) return res.status(404).json({ message: 'Document not found.' });
+
+        const { rows: markups } = await pool.query(
+            'SELECT * FROM markups WHERE document_id = $1 ORDER BY created_at ASC',
+            [req.params.id]
+        );
+        res.json({ document, markups });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/documents', upload.single('blueprintFile'), async (req, res) => {
+    const { title, revision, uploaderName, uploaderPosition, uploaderPhone, uploaderEmail } = req.body;
+    const file = req.file;
+
+    if (!title?.trim() || !file) return res.status(400).json({ message: 'Title and a PDF, PNG, or JPG file are required.' });
+    const validationMessage = validatePerson(uploaderName?.trim(), uploaderPosition?.trim(), uploaderEmail?.trim(), uploaderPhone?.trim());
+    if (validationMessage) return res.status(400).json({ message: validationMessage });
+    const documentRevision = revision?.trim() || 'Rev 1.0';
+    const fileName = normalizeFileName(file.originalname);
+    const fileHash = getFileHash(file);
+
+    try {
+        if (await findDuplicateDocument(fileName, fileHash, documentRevision)) {
+            removeUploadedFile(file);
+            return res.status(409).json({ message: 'This file already exists or this filename already has that revision.' });
+        }
+
+        const { rows } = await pool.query(
+            `INSERT INTO documents
+                (title, revision, uploader_name, uploader_position, uploader_phone, uploader_email, file_url, file_name, file_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+            [title.trim(), documentRevision, uploaderName.trim(), uploaderPosition.trim(), uploaderPhone?.trim() || null, uploaderEmail.trim(), `/uploads/${file.filename}`, fileName, fileHash]
+        );
+        res.json({ message: 'Document uploaded successfully', id: rows[0].id });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/documents/:id/markups', upload.single('fixedFile'), async (req, res) => {
+    const { commentorName, commentorPosition, commentorPhone, commentorEmail, comment, parentId, fixedRevision } = req.body;
+    const fixedFile = req.file;
+
+    if (!comment?.trim()) return res.status(400).json({ message: 'A comment describing the issue or fix is required.' });
+    if (fixedFile && !fixedRevision?.trim()) {
+        removeUploadedFile(fixedFile);
+        return res.status(400).json({ message: 'A revision is required when uploading a fixed file.' });
+    }
+    const validationMessage = validatePerson(commentorName?.trim(), commentorPosition?.trim(), commentorEmail?.trim(), commentorPhone?.trim());
+    if (validationMessage) return res.status(400).json({ message: validationMessage });
+
+    const documentResult = await pool.query('SELECT id FROM documents WHERE id = $1', [req.params.id]);
+    if (!documentResult.rows[0]) return res.status(404).json({ message: 'Document not found.' });
+
+    const fixedFileName = fixedFile ? normalizeFileName(fixedFile.originalname) : null;
+    const fixedFileHash = fixedFile ? getFileHash(fixedFile) : null;
+    const fixedFileRevision = fixedRevision?.trim() || null;
+
+    try {
+        if (fixedFile && await findDuplicateFixedFile(fixedFileName, fixedFileHash, fixedFileRevision)) {
+            removeUploadedFile(fixedFile);
+            return res.status(409).json({ message: 'This file already exists or this filename already has that revision.' });
+        }
+
+        const { rows } = await pool.query(
+            `INSERT INTO markups
+                (document_id, commentor_name, commentor_position, commentor_phone, commentor_email,
+                 x_coord, y_coord, comment, parent_id, fixed_file_url, fixed_file_name, fixed_file_hash, fixed_revision)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+            [req.params.id, commentorName.trim(), commentorPosition.trim(), commentorPhone?.trim() || null, commentorEmail.trim(), 0, 0, comment.trim(), parentId || null, fixedFile ? `/uploads/${fixedFile.filename}` : null, fixedFileName, fixedFileHash, fixedFileRevision]
+        );
+        res.json({ message: 'Markup saved successfully', id: rows[0].id });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.delete('/api/documents/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM documents WHERE id = $1', [req.params.id]);
+        const { rows } = await pool.query('SELECT COUNT(*)::int AS count FROM documents');
+        if (rows[0].count === 0) {
+            await pool.query("SELECT setval(pg_get_serial_sequence('documents', 'id'), 1, false)");
+        }
+        res.json({ message: 'Document deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+const start = async () => {
+    try {
+        await createTables();
+        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+    } catch (error) {
+        console.error('Unable to start server:', error.message);
+        process.exitCode = 1;
+    }
+};
+
+start();
