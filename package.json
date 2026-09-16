@@ -5,7 +5,9 @@
   "description": "Backend API for BluePin engineering markup hub",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "tsx watch src/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
