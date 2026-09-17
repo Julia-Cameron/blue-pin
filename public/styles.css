@@ -103,31 +103,49 @@ body {
 }
 
 #detailModal a#modalViewLink,
-#detailModal a#modalDownloadLink {
-    display: inline-block;
-    color: #ffffff !important;
-    background-color: #2d6cdf !important;
+#detailModal a#modalDownloadLink,
+#document-list button,
+#confirmModal button,
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    line-height: 1.2;
     text-decoration: none !important;
-    transition: filter 0.2s ease, transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+    transition: filter 0.2s ease, transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-#detailModal a#modalViewLink:hover,
-#detailModal a#modalViewLink:focus,
-#detailModal a#modalDownloadLink:hover,
-#detailModal a#modalDownloadLink:focus {
-    filter: brightness(0.94);
-    transform: translateY(-1px);
-    opacity: 1;
+#detailModal a#modalViewLink,
+#detailModal a#modalDownloadLink {
+    color: #ffffff !important;
+    background-color: #2d6cdf !important;
 }
 
 #detailModal a#modalDownloadLink {
     background-color: #1f9d6a !important;
 }
 
+#document-list button,
+#confirmModal button,
+button {
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+#document-list button:hover,
+#document-list button:focus,
+#confirmModal button:hover,
+#confirmModal button:focus,
+#detailModal a#modalViewLink:hover,
+#detailModal a#modalViewLink:focus,
 #detailModal a#modalDownloadLink:hover,
-#detailModal a#modalDownloadLink:focus {
-    background-color: #188960 !important;
+#detailModal a#modalDownloadLink:focus,
+button:hover,
+button:focus {
+    filter: brightness(0.96);
+    transform: translateY(-1px);
 }
 
 #detailModal a#modalViewLink:hover,
@@ -135,21 +153,9 @@ body {
     background-color: #255dc5 !important;
 }
 
-button,
-a[role="button"],
-button:hover,
-a[role="button"]:hover,
-button:focus,
-a[role="button"]:focus {
-    transition: filter 0.2s ease, transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-button:hover,
-a[role="button"]:hover,
-button:focus,
-a[role="button"]:focus {
-    filter: brightness(0.97);
-    transform: translateY(-1px);
+#detailModal a#modalDownloadLink:hover,
+#detailModal a#modalDownloadLink:focus {
+    background-color: #188960 !important;
 }
 
 .comment-panel {
