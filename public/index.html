@@ -8,159 +8,480 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+<body class="bg-[#edf1f6] text-slate-800 min-h-screen antialiased">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-    <div class="max-w-5xl mx-auto py-10 px-4">
-        <!-- Header -->
-        <header
-            class="mb-8 border-b border-slate-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <h1 class="text-3xl font-bold text-blue-900 tracking-tight">BluePin Dashboard</h1>
-                <p class="text-slate-500 text-sm mt-1">Engineering Blueprint Management & Markup System</p>
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .inspector-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 18px;
+        }
+
+        .inspector-window {
+            width: min(1180px, 100%);
+            background: #f4f6fa;
+            border: 1px solid #dfe7f2;
+            border-radius: 14px;
+            box-shadow: 0 14px 35px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+        }
+
+        .inspector-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 22px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid #dfe7f2;
+            color: #1f2937;
+        }
+
+        .inspector-header h3 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .close-button {
+            border: none;
+            background: transparent;
+            font-size: 26px;
+            line-height: 1;
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .inspector-body {
+            display: grid;
+            grid-template-columns: 1.02fr 1.18fr;
+            gap: 0;
+            min-height: 700px;
+        }
+
+        .info-panel,
+        .comment-panel {
+            padding: 25px 26px 18px;
+        }
+
+        .info-panel {
+            position: relative;
+            background: #f4f6fa;
+            border-right: 1px solid #dfe3ea;
+        }
+
+        .panel-title {
+            margin: 0 0 18px;
+            font-size: 13px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #667489;
+            font-weight: 700;
+        }
+
+        .meta-stack {
+            display: grid;
+            gap: 6px;
+            color: #2c3748;
+            font-size: 14px;
+            line-height: 1.45;
+            padding-right: 12px;
+        }
+
+        .meta-stack strong {
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .meta-stack a {
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+
+        .meta-stack a:hover {
+            text-decoration: underline;
+        }
+
+        .btn-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 0 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .action-btn:hover {
+            opacity: 0.96;
+        }
+
+        .action-btn.primary {
+            background: linear-gradient(180deg, #2a73ff, #2157cc);
+            color: #fff;
+        }
+
+        .action-btn.success {
+            background: linear-gradient(180deg, #16a085, #0d8b74);
+            color: #fff;
+        }
+
+        .section-divider {
+            border-top: 1px solid #dfe3ea;
+            margin-top: 16px;
+            padding-top: 18px;
+        }
+
+        .revision-box {
+            background: #fff;
+            border: 1px solid #dfe3ea;
+            border-radius: 8px;
+            padding: 14px 14px 10px;
+            margin-top: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        }
+
+        .revision-box h5 {
+            margin: 0 0 10px;
+            font-size: 13px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #52607a;
+        }
+
+        .revision-list {
+            display: grid;
+            gap: 12px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 6px;
+        }
+
+        .revision-item {
+            background: #f7f9fc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px 12px 10px;
+        }
+
+        .revision-item p {
+            margin: 0 0 5px;
+            color: #3b4756;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .revision-item strong {
+            color: #1f2937;
+        }
+
+        .revision-item .small-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .mini-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 30px;
+            padding: 0 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .mini-btn.primary {
+            background: #2a73ff;
+        }
+
+        .mini-btn.success {
+            background: #0ea879;
+        }
+
+        .comment-panel {
+            background: #f3f6fb;
+            padding: 22px 24px 20px;
+        }
+
+        .comment-panel .panel-title {
+            margin-bottom: 18px;
+        }
+
+        .comment-form {
+            display: grid;
+            gap: 11px;
+        }
+
+        .comment-form input,
+        .comment-form textarea {
+            width: 100%;
+            border: 1px solid #d8e0eb;
+            border-radius: 6px;
+            background: #fff;
+            color: #112031;
+            padding: 11px 12px;
+            font-size: 13px;
+            resize: vertical;
+        }
+
+        .comment-form input::placeholder,
+        .comment-form textarea::placeholder {
+            color: #8a96a8;
+        }
+
+        .comment-form input:focus,
+        .comment-form textarea:focus {
+            outline: none;
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.2);
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field-label {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #667489;
+            font-weight: 600;
+        }
+
+        .submit-btn {
+            margin-top: 6px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(180deg, #243548, #1d2b3f);
+            color: #fff;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .status-note {
+            display: none;
+            margin: 0;
+            font-size: 12px;
+            color: #2563eb;
+        }
+
+        .status-note.visible {
+            display: block;
+        }
+
+        .error-box {
+            display: none;
+            border: 1px solid #fecaca;
+            background: #fff1f2;
+            color: #be123c;
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .error-box.visible {
+            display: block;
+        }
+
+        .history-shell {
+            background: #eef3f8;
+            padding: 0 24px 22px;
+        }
+
+        .history-header {
+            margin: 0 0 12px;
+            font-size: 15px;
+            color: #1f2937;
+            font-weight: 700;
+        }
+
+        .history-list {
+            background: #fff;
+            border: 1px solid #dfe3ea;
+            border-radius: 10px;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .history-item {
+            padding: 14px 16px 12px;
+            border-bottom: 1px solid #edf2f7;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .history-name {
+            font-weight: 700;
+            color: #1f2937;
+            font-size: 13px;
+        }
+
+        .history-date {
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .history-copy {
+            margin: 0;
+            color: #384864;
+            font-size: 13px;
+            line-height: 1.55;
+            white-space: pre-line;
+        }
+
+        @media (max-width: 920px) {
+            .inspector-body {
+                grid-template-columns: 1fr;
+            }
+
+            .info-panel {
+                border-right: none;
+                border-bottom: 1px solid #dfe3ea;
+            }
+        }
+    </style>
+
+    <div class="inspector-shell">
+        <div id="detailModal" class="inspector-window" aria-live="polite">
+            <div class="inspector-header">
+                <h3 id="modalHeaderTitle">Document Inspector: Main Floor HVAC Layout (ID #1)</h3>
+                <button class="close-button" onclick="closeModal()" aria-label="Close inspector">×</button>
             </div>
-            <!-- Search by ID form -->
-            <div class="flex gap-2 w-full md:w-auto">
-                <input type="number" id="searchId" placeholder="Search ID..."
-                    class="px-3 py-2 text-sm border border-slate-300 rounded-lg w-full md:w-36 outline-none focus:ring-2 focus:ring-blue-600">
-                <button onclick="searchById()"
-                    class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition shrink-0">Search
-                    ID</button>
-            </div>
-        </header>
 
-        <!-- Global Notification Banner -->
-        <div id="notificationBanner" class="hidden mb-6 p-4 rounded-lg text-sm font-medium transition shadow-sm"></div>
+            <div class="inspector-body">
+                <aside class="info-panel">
+                    <h4 class="panel-title">Document Information</h4>
+                    <div id="docMetaInfo" class="meta-stack">
+                        <div><strong>Title:</strong> Main Floor HVAC Layout</div>
+                        <div><strong>Revision:</strong> Rev 2.4</div>
+                        <div><strong>Uploader:</strong> Elena Rostova (Lead MEP Engineer)</div>
+                        <div><strong>Contact:</strong> <a
+                                href="mailto:elena.rostova@bluepin-engineering.com">elena.rostova@bluepin-engineering.com</a>
+                            • (416)555-0192</div>
+                        <div><strong>Date Added:</strong> 9/16/2026, 10:34:46 PM</div>
 
-        <!-- Upload Card -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
-            <h2 class="text-lg font-semibold text-slate-700 mb-4">Upload New Blueprint & Uploader Details</h2>
+                        <div class="section-divider">
+                            <div class="panel-title" style="margin-bottom:12px;">Original Blueprint File</div>
+                            <div class="btn-row">
+                                <a href="#" class="action-btn primary">Open Original Blueprint</a>
+                                <a href="#" class="action-btn success">Download Original Blueprint</a>
+                            </div>
+                        </div>
 
-            <!-- Dedicated Error Box for Upload Form -->
-            <div id="uploadErrorBox"
-                class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-medium">
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Blueprint
-                        Title *</label>
-                    <input type="text" id="title" placeholder="e.g., HVAC Floor Plan"
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Revision
-                        Code</label>
-                    <input type="text" id="revision" placeholder="e.g., Rev 1.2" value="Rev 1.0"
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Uploader Full
-                        Name *</label>
-                    <input type="text" id="uploaderName" placeholder="John Doe" required
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Position /
-                        Title</label>
-                    <input type="text" id="uploaderPosition" placeholder="Senior Architect" required
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Phone Number
-                        <span class="text-slate-400 normal-case font-normal">(Auto-formats as you type)</span></label>
-                    <input type="text" id="uploaderPhone" placeholder="(416)555-0192" maxlength="13"
-                        oninput="formatPhoneInput(this)"
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Email Address
-                        *</label>
-                    <input type="email" id="uploaderEmail" placeholder="john.doe@firm.com" required
-                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Select File
-                        (PDF, PNG, JPG) *</label>
-                    <input type="file" id="blueprintFile" accept=".pdf,.png,.jpg,.jpeg"
-                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
-                </div>
-            </div>
-            <button onclick="uploadDocument()"
-                class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition shadow-sm">
-                Upload Blueprint
-            </button>
-        </div>
-
-        <!-- Document List Card -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 class="text-lg font-semibold text-slate-700 mb-4">Uploaded Blueprints</h2>
-            <div id="document-list" class="divide-y divide-slate-100">
-                <p class="text-slate-400 text-sm py-4 text-center">Loading blueprints...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Document & Markup Details Modal -->
-    <div id="detailModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4 border-b pb-3">
-                <h3 id="modalHeaderTitle" class="text-xl font-bold text-slate-800">Document Inspector</h3>
-                <button onclick="closeModal()"
-                    class="text-slate-400 hover:text-slate-600 font-bold text-2xl">&times;</button>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <!-- Document Info & Preview -->
-                <div class="flex flex-col bg-slate-50 p-4 rounded-xl border">
-                    <h4 class="font-semibold text-blue-900 text-sm uppercase tracking-wide">Document Information</h4>
-                    <div id="docMetaInfo"
-                        class="flex-1 min-h-0 text-sm space-y-1 text-slate-700 max-h-[60vh] overflow-y-auto pr-1">
+                        <div class="section-divider">
+                            <div class="revision-box">
+                                <h5>Fixed Revisions</h5>
+                                <div class="revision-list">
+                                    <div class="revision-item">
+                                        <p><strong>Fixed Revision:</strong> Rev 2.5</p>
+                                        <p><strong>File:</strong> bluepin_level1_hvac_rev2.5.pdf</p>
+                                        <p><strong>Comment:</strong> Reviewed supply duct routing near Server Room A.
+                                            The CFM requirements for VAV-1.4 need a minor adjustment to account for the
+                                            updated equipment load. Please review and coordinate with electrical shaft
+                                            clearance.</p>
+                                        <p><strong>Uploaded by:</strong> Marcus Vance (Senior Mechanical Reviewer)</p>
+                                        <p><strong>Contact:</strong> <a
+                                                href="mailto:marcus.vance@bluepin-engineering.com">marcus.vance@bluepin-engineering.com</a>
+                                            • (416)555-0442</p>
+                                        <p><strong>Date Added:</strong> 9/16/2026, 10:45:16 PM</p>
+                                        <div class="small-actions">
+                                            <a href="#" class="mini-btn primary">Open This Fixed Revision</a>
+                                            <a href="#" class="mini-btn success">Download This Fixed Revision</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- Add Comment Form -->
-                <div class="bg-slate-50 p-4 rounded-xl border space-y-3">
-                    <h4 class="font-semibold text-blue-900 text-sm uppercase tracking-wide">Add Markup / Comment</h4>
+                <section class="comment-panel">
+                    <h4 class="panel-title">Add Markup / Comment</h4>
 
-                    <!-- Dedicated Error Box for Comment Form -->
-                    <div id="commentErrorBox"
-                        class="hidden p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-md text-xs font-medium">
+                    <div id="commentErrorBox" class="error-box"></div>
+
+                    <div class="comment-form">
+                        <input type="text" id="commentorName" placeholder="Your Full Name *">
+                        <input type="text" id="commentorPosition" placeholder="Your Position *">
+                        <div class="two-col">
+                            <input type="text" id="commentorPhone" placeholder="Phone" maxlength="13"
+                                oninput="formatPhoneInput(this)">
+                            <input type="email" id="commentorEmail" placeholder="Email *">
+                        </div>
+                        <textarea id="commentText" rows="3"
+                            placeholder="Write markup notes or issue feedback... *"></textarea>
+                        <input type="hidden" id="parentId">
+                        <p id="replyStatus" class="status-note"></p>
+                        <div>
+                            <label class="field-label">Fixed version (optional, PDF/PNG/JPG)</label>
+                            <input type="text" id="fixedRevision"
+                                placeholder="Fixed revision (required with file, e.g. Rev 1.1)">
+                        </div>
+                        <input type="file" id="fixedFile" accept=".pdf,.png,.jpg,.jpeg">
+                        <button onclick="saveMarkup()" id="submitMarkupButton" class="submit-btn">Submit Comment /
+                            Reply</button>
                     </div>
-
-                    <input type="text" id="commentorName" placeholder="Your Full Name *" required
-                        class="w-full px-3 py-1.5 border rounded-md text-xs outline-none">
-                    <input type="text" id="commentorPosition" placeholder="Your Position *" required
-                        class="w-full px-3 py-1.5 border rounded-md text-xs outline-none">
-                    <div class="grid grid-cols-2 gap-2">
-                        <input type="text" id="commentorPhone" placeholder="Phone" maxlength="13"
-                            oninput="formatPhoneInput(this)"
-                            class="w-full px-3 py-1.5 border rounded-md text-xs outline-none">
-                        <input type="email" id="commentorEmail" placeholder="Email *" required
-                            class="w-full px-3 py-1.5 border rounded-md text-xs outline-none">
-                    </div>
-                    <textarea id="commentText" placeholder="Write markup notes or issue feedback... *" rows="2"
-                        class="w-full px-3 py-1.5 border rounded-md text-xs outline-none"></textarea>
-                    <input type="hidden" id="parentId">
-                    <p id="replyStatus" class="hidden text-xs text-blue-700"></p>
-                    <label class="block text-xs font-medium text-slate-500">Fixed version (optional,
-                        PDF/PNG/JPG)</label>
-                    <input type="text" id="fixedRevision"
-                        placeholder="Fixed revision (required with file, e.g. Rev 1.1)"
-                        class="w-full px-3 py-1.5 border rounded-md text-xs outline-none">
-                    <input type="file" id="fixedFile" accept=".pdf,.png,.jpg,.jpeg"
-                        class="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700">
-                    <button onclick="saveMarkup()" id="submitMarkupButton"
-                        class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-md transition">Submit
-                        Comment / Reply</button>
-                </div>
+                </section>
             </div>
 
-            <!-- Comments & History List -->
-            <div>
-                <h4 class="text-sm font-semibold text-slate-700 mb-3">Recorded Comments & Revisions History</h4>
-                <div id="modalMarkupList"
-                    class="space-y-3 bg-white border border-slate-200 rounded-xl p-3 max-h-[36vh] overflow-y-auto shadow-inner">
-                    <p class="text-slate-400 text-sm">No comments recorded yet.</p>
+            <div class="history-shell">
+                <h4 id="historyTitle" class="history-header">Recorded Comments &amp; Revisions History (1)</h4>
+                <div id="modalMarkupList" class="history-list">
+                    <div class="history-item">
+                        <div class="history-top">
+                            <div class="history-name">Marcus Vance (Senior Mechanical Reviewer)</div>
+                            <div class="history-date">9/16/2026, 10:45:16 PM</div>
+                        </div>
+                        <p class="history-copy">Reviewed supply duct routing near Server Room A. The CFM requirements
+                            for VAV-1.4 need a minor adjustment to account for the updated equipment load. Please review
+                            and coordinate with electrical shaft clearance.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -210,6 +531,7 @@
         // Function to display a global notification banner with optional error styling
         function showNotification(message, isError = false) {
             const banner = document.getElementById('notificationBanner');
+            if (!banner) return;
             banner.className = `mb-6 p-4 rounded-lg text-sm font-medium transition shadow-sm ${isError ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`;
             banner.innerText = message;
             banner.classList.remove('hidden');
@@ -247,10 +569,12 @@
 
         // Function to fetch and display the list of uploaded documents from the server
         async function fetchDocuments() {
+            const list = document.getElementById('document-list');
+            if (!list) return;
+
             try {
                 const res = await fetch('/api/documents');
                 const data = await res.json();
-                const list = document.getElementById('document-list');
 
                 if (!data.documents || data.documents.length === 0) {
                     list.innerHTML = `<p class="text-slate-400 text-sm py-4 text-center">No blueprints found. Upload one above!</p>`;
