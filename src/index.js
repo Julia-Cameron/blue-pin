@@ -73,33 +73,6 @@ const createTables = async () => {
     await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_file_hash TEXT');
     await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS fixed_revision TEXT');
 
-    await pool.query(`
-        UPDATE documents
-        SET file_name = LOWER(REGEXP_REPLACE(file_url, '^/uploads/[0-9]+-', ''))
-        WHERE file_name IS NULL
-    `);
-    await pool.query(`
-        UPDATE markups
-        SET fixed_file_name = LOWER(REGEXP_REPLACE(fixed_file_url, '^/uploads/[0-9]+-', ''))
-        WHERE fixed_file_name IS NULL AND fixed_file_url IS NOT NULL
-    `);
-
-    const { rows: remainingDocuments } = await pool.query('SELECT id FROM documents ORDER BY id');
-    if (remainingDocuments.length === 1 && remainingDocuments[0].id !== 1) {
-        const oldDocumentId = remainingDocuments[0].id;
-        await pool.query('BEGIN');
-        try {
-            await pool.query('ALTER TABLE markups DROP CONSTRAINT IF EXISTS markups_document_id_fkey');
-            await pool.query('UPDATE documents SET id = 1 WHERE id = $1', [oldDocumentId]);
-            await pool.query('UPDATE markups SET document_id = 1 WHERE document_id = $1', [oldDocumentId]);
-            await pool.query('ALTER TABLE markups ADD CONSTRAINT markups_document_id_fkey FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE');
-            await pool.query("SELECT setval(pg_get_serial_sequence('documents', 'id'), 1, true)");
-            await pool.query('COMMIT');
-        } catch (error) {
-            await pool.query('ROLLBACK');
-            throw error;
-        }
-    }
 };
 
 const storage = multer.memoryStorage();
@@ -317,7 +290,6 @@ app.delete('/api/documents/:id', async (req, res) => {
 
 const start = async () => {
     try {
-        await ensureStorageBucket();
         await createTables();
         // Add '0.0.0.0' here so Render can route traffic to your app
         app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
