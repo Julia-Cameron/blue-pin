@@ -1,24 +1,29 @@
 import express from 'express';
 import multer from 'multer';
 import crypto from 'node:crypto';
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
 import { pool } from './db.js';
 
 dotenv.config();
 
+const hasSupabaseStorage = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+const supabase = hasSupabaseStorage
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
+    : null;
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
-const uploadsDirectory = path.resolve('uploads');
+const storageBucket = process.env.SUPABASE_STORAGE_BUCKET || 'uploads';
+const localUploadDirectory = path.resolve('uploads');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
-app.use('/uploads', express.static(uploadsDirectory));
+app.use('/uploads', express.static(localUploadDirectory));
 
-fs.mkdirSync(uploadsDirectory, { recursive: true });
-const hashFilePath = (filePath) => crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+const hashFile = (file) => crypto.createHash('sha256').update(file.buffer).digest('hex');
 
 const createTables = async () => {
     await pool.query(`
@@ -76,22 +81,6 @@ const createTables = async () => {
         WHERE fixed_file_name IS NULL AND fixed_file_url IS NOT NULL
     `);
 
-    const { rows: documents } = await pool.query('SELECT id, file_url FROM documents WHERE file_hash IS NULL');
-    for (const document of documents) {
-        const filePath = path.resolve(uploadsDirectory, path.basename(document.file_url));
-        if (fs.existsSync(filePath)) {
-            await pool.query('UPDATE documents SET file_hash = $1 WHERE id = $2', [hashFilePath(filePath), document.id]);
-        }
-    }
-
-    const { rows: markups } = await pool.query('SELECT id, fixed_file_url FROM markups WHERE fixed_file_hash IS NULL AND fixed_file_url IS NOT NULL');
-    for (const markup of markups) {
-        const filePath = path.resolve(uploadsDirectory, path.basename(markup.fixed_file_url));
-        if (fs.existsSync(filePath)) {
-            await pool.query('UPDATE markups SET fixed_file_hash = $1 WHERE id = $2', [hashFilePath(filePath), markup.id]);
-        }
-    }
-
     const { rows: remainingDocuments } = await pool.query('SELECT id FROM documents ORDER BY id');
     if (remainingDocuments.length === 1 && remainingDocuments[0].id !== 1) {
         const oldDocumentId = remainingDocuments[0].id;
@@ -110,10 +99,7 @@ const createTables = async () => {
     }
 };
 
-const storage = multer.diskStorage({
-    destination: (_req, _file, callback) => callback(null, uploadsDirectory),
-    filename: (_req, file, callback) => callback(null, `${Date.now()}-${file.originalname}`)
-});
+const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: { fileSize: 10 * 1024 * 1024 },
@@ -138,10 +124,52 @@ const validatePerson = (name, position, email, phone) => {
     return null;
 };
 
-const getFileHash = (file) => hashFilePath(file.path);
 const normalizeFileName = (fileName) => fileName.trim().toLowerCase();
-const removeUploadedFile = (file) => {
-    if (file) fs.rmSync(file.path, { force: true });
+const getStoragePath = (file) => `${Date.now()}-${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`;
+
+const uploadToSupabase = async (file) => {
+    const storagePath = getStoragePath(file);
+    if (!hasSupabaseStorage) {
+        await fs.mkdir(localUploadDirectory, { recursive: true });
+        await fs.writeFile(path.join(localUploadDirectory, storagePath), file.buffer);
+        return { storagePath, url: `/uploads/${storagePath}` };
+    }
+
+    const { error } = await supabase.storage.from(storageBucket).upload(storagePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+    });
+    if (error) throw error;
+
+    const { data } = supabase.storage.from(storageBucket).getPublicUrl(storagePath);
+    return { storagePath, url: data.publicUrl };
+};
+
+const removeFromSupabase = async (storagePath) => {
+    if (!storagePath) return;
+    if (!hasSupabaseStorage) {
+        await fs.rm(path.join(localUploadDirectory, storagePath), { force: true });
+        return;
+    }
+    await supabase.storage.from(storageBucket).remove([storagePath]);
+};
+
+const ensureStorageBucket = async () => {
+    if (!hasSupabaseStorage) {
+        await fs.mkdir(localUploadDirectory, { recursive: true });
+        return;
+    }
+
+    const { data: bucket, error: getError } = await supabase.storage.getBucket(storageBucket);
+    if (bucket) {
+        const { error: updateError } = await supabase.storage.updateBucket(storageBucket, { public: true });
+        if (updateError) throw updateError;
+        return;
+    }
+    if (getError && !getError.message.toLowerCase().includes('not found')) throw getError;
+
+    const { error: createError } = await supabase.storage.createBucket(storageBucket, { public: true });
+    if (createError && !createError.message.toLowerCase().includes('already exists')) throw createError;
 };
 
 const findDuplicateDocument = async (fileName, fileHash, revision) => {
@@ -202,21 +230,27 @@ app.post('/api/documents', upload.single('blueprintFile'), async (req, res) => {
     if (validationMessage) return res.status(400).json({ message: validationMessage });
     const documentRevision = revision?.trim() || 'Rev 1.0';
     const fileName = normalizeFileName(file.originalname);
-    const fileHash = getFileHash(file);
+    const fileHash = hashFile(file);
 
     try {
         if (await findDuplicateDocument(fileName, fileHash, documentRevision)) {
-            removeUploadedFile(file);
             return res.status(409).json({ message: 'This file already exists or this filename already has that revision.' });
         }
 
-        const { rows } = await pool.query(
-            `INSERT INTO documents
-                (title, revision, uploader_name, uploader_position, uploader_phone, uploader_email, file_url, file_name, file_hash)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-            [title.trim(), documentRevision, uploaderName.trim(), uploaderPosition.trim(), uploaderPhone?.trim() || null, uploaderEmail.trim(), `/uploads/${file.filename}`, fileName, fileHash]
-        );
-        res.json({ message: 'Document uploaded successfully', id: rows[0].id });
+        const uploadedFile = await uploadToSupabase(file);
+
+        try {
+            const { rows } = await pool.query(
+                `INSERT INTO documents
+                    (title, revision, uploader_name, uploader_position, uploader_phone, uploader_email, file_url, file_name, file_hash)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+                [title.trim(), documentRevision, uploaderName.trim(), uploaderPosition.trim(), uploaderPhone?.trim() || null, uploaderEmail.trim(), uploadedFile.url, fileName, fileHash]
+            );
+            res.json({ message: 'Document uploaded successfully', id: rows[0].id });
+        } catch (error) {
+            await removeFromSupabase(uploadedFile.storagePath);
+            throw error;
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -228,7 +262,6 @@ app.post('/api/documents/:id/markups', upload.single('fixedFile'), async (req, r
 
     if (!comment?.trim()) return res.status(400).json({ message: 'A comment describing the issue or fix is required.' });
     if (fixedFile && !fixedRevision?.trim()) {
-        removeUploadedFile(fixedFile);
         return res.status(400).json({ message: 'A revision is required when uploading a fixed file.' });
     }
     const validationMessage = validatePerson(commentorName?.trim(), commentorPosition?.trim(), commentorEmail?.trim(), commentorPhone?.trim());
@@ -238,23 +271,29 @@ app.post('/api/documents/:id/markups', upload.single('fixedFile'), async (req, r
     if (!documentResult.rows[0]) return res.status(404).json({ message: 'Document not found.' });
 
     const fixedFileName = fixedFile ? normalizeFileName(fixedFile.originalname) : null;
-    const fixedFileHash = fixedFile ? getFileHash(fixedFile) : null;
+    const fixedFileHash = fixedFile ? hashFile(fixedFile) : null;
     const fixedFileRevision = fixedRevision?.trim() || null;
 
     try {
         if (fixedFile && await findDuplicateFixedFile(fixedFileName, fixedFileHash, fixedFileRevision)) {
-            removeUploadedFile(fixedFile);
             return res.status(409).json({ message: 'This file already exists or this filename already has that revision.' });
         }
 
-        const { rows } = await pool.query(
-            `INSERT INTO markups
-                (document_id, commentor_name, commentor_position, commentor_phone, commentor_email,
-                 x_coord, y_coord, comment, parent_id, fixed_file_url, fixed_file_name, fixed_file_hash, fixed_revision)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-            [req.params.id, commentorName.trim(), commentorPosition.trim(), commentorPhone?.trim() || null, commentorEmail.trim(), 0, 0, comment.trim(), parentId || null, fixedFile ? `/uploads/${fixedFile.filename}` : null, fixedFileName, fixedFileHash, fixedFileRevision]
-        );
-        res.json({ message: 'Markup saved successfully', id: rows[0].id });
+        const uploadedFile = fixedFile ? await uploadToSupabase(fixedFile) : null;
+
+        try {
+            const { rows } = await pool.query(
+                `INSERT INTO markups
+                    (document_id, commentor_name, commentor_position, commentor_phone, commentor_email,
+                     x_coord, y_coord, comment, parent_id, fixed_file_url, fixed_file_name, fixed_file_hash, fixed_revision)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+                [req.params.id, commentorName.trim(), commentorPosition.trim(), commentorPhone?.trim() || null, commentorEmail.trim(), 0, 0, comment.trim(), parentId || null, uploadedFile?.url || null, fixedFileName, fixedFileHash, fixedFileRevision]
+            );
+            res.json({ message: 'Markup saved successfully', id: rows[0].id });
+        } catch (error) {
+            await removeFromSupabase(uploadedFile?.storagePath);
+            throw error;
+        }
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -275,12 +314,13 @@ app.delete('/api/documents/:id', async (req, res) => {
 
 const start = async () => {
     try {
+        await ensureStorageBucket();
         await createTables();
-        app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+        // Add '0.0.0.0' here so Render can route traffic to your app
+        app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
     } catch (error) {
         console.error('Unable to start server:', error.message);
         process.exitCode = 1;
     }
 };
-
 start();
