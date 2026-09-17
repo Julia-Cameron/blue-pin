@@ -19,20 +19,12 @@
             font-family: Arial, Helvetica, sans-serif;
         }
 
-        .inspector-shell {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 18px;
-        }
-
         .inspector-window {
-            width: min(1180px, 100%);
-            background: #f4f6fa;
+            width: min(1160px, 100%);
+            background: #f3f5f8;
             border: 1px solid #dfe7f2;
-            border-radius: 14px;
-            box-shadow: 0 14px 35px rgba(15, 23, 42, 0.12);
+            border-radius: 12px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
             overflow: hidden;
         }
 
@@ -41,15 +33,15 @@
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            padding: 18px 22px 16px;
-            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 18px 12px 22px;
+            background: #2b313d;
             border-bottom: 1px solid #dfe7f2;
-            color: #1f2937;
+            color: #ffffff;
         }
 
         .inspector-header h3 {
             margin: 0;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
             letter-spacing: -0.02em;
         }
@@ -57,36 +49,37 @@
         .close-button {
             border: none;
             background: transparent;
-            font-size: 26px;
+            font-size: 30px;
             line-height: 1;
-            color: #6b7280;
+            color: #dfe7f2;
             cursor: pointer;
+            padding: 0;
         }
 
         .inspector-body {
             display: grid;
             grid-template-columns: 1.02fr 1.18fr;
             gap: 0;
-            min-height: 700px;
+            min-height: 640px;
         }
 
         .info-panel,
         .comment-panel {
-            padding: 25px 26px 18px;
+            padding: 18px 20px 18px;
         }
 
         .info-panel {
             position: relative;
-            background: #f4f6fa;
+            background: #f3f5f8;
             border-right: 1px solid #dfe3ea;
         }
 
         .panel-title {
-            margin: 0 0 18px;
-            font-size: 13px;
+            margin: 0 0 14px;
+            font-size: 12px;
             letter-spacing: 0.12em;
             text-transform: uppercase;
-            color: #667489;
+            color: #6b7280;
             font-weight: 700;
         }
 
@@ -230,11 +223,11 @@
 
         .comment-panel {
             background: #f3f6fb;
-            padding: 22px 24px 20px;
+            padding: 18px 22px 18px;
         }
 
         .comment-panel .panel-title {
-            margin-bottom: 18px;
+            margin-bottom: 14px;
         }
 
         .comment-form {
@@ -246,10 +239,10 @@
         .comment-form textarea {
             width: 100%;
             border: 1px solid #d8e0eb;
-            border-radius: 6px;
+            border-radius: 5px;
             background: #fff;
             color: #112031;
-            padding: 11px 12px;
+            padding: 10px 11px;
             font-size: 13px;
             resize: vertical;
         }
@@ -290,6 +283,7 @@
             font-size: 14px;
             font-weight: 700;
             cursor: pointer;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
         }
 
         .status-note {
@@ -320,11 +314,11 @@
 
         .history-shell {
             background: #eef3f8;
-            padding: 0 24px 22px;
+            padding: 0 18px 18px;
         }
 
         .history-header {
-            margin: 0 0 12px;
+            margin: 0 0 10px;
             font-size: 15px;
             color: #1f2937;
             font-weight: 700;
@@ -333,7 +327,7 @@
         .history-list {
             background: #fff;
             border: 1px solid #dfe3ea;
-            border-radius: 10px;
+            border-radius: 8px;
             padding: 0;
             overflow: hidden;
         }
@@ -387,65 +381,104 @@
         }
     </style>
 
-    <div class="inspector-shell">
-        <div id="detailModal" class="inspector-window" aria-live="polite">
+    <div class="max-w-5xl mx-auto py-10 px-4">
+        <header
+            class="mb-8 border-b border-slate-200 pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-900 tracking-tight">BluePin Dashboard</h1>
+                <p class="text-slate-500 text-sm mt-1">Engineering Blueprint Management &amp; Markup System</p>
+            </div>
+            <div class="flex gap-2 w-full md:w-auto">
+                <input type="number" id="searchId" placeholder="Search ID..."
+                    class="px-3 py-2 text-sm border border-slate-300 rounded-lg w-full md:w-36 outline-none focus:ring-2 focus:ring-blue-600">
+                <button onclick="searchById()"
+                    class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition shrink-0">Search
+                    ID</button>
+            </div>
+        </header>
+
+        <div id="notificationBanner" class="hidden mb-6 p-4 rounded-lg text-sm font-medium transition shadow-sm"></div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <h2 class="text-lg font-semibold text-slate-700 mb-4">Upload New Blueprint &amp; Uploader Details</h2>
+            <div id="uploadErrorBox"
+                class="hidden mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs font-medium">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Blueprint
+                        Title *</label>
+                    <input type="text" id="title" placeholder="e.g., HVAC Floor Plan"
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Revision
+                        Code</label>
+                    <input type="text" id="revision" placeholder="e.g., Rev 1.2" value="Rev 1.0"
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Uploader Full
+                        Name *</label>
+                    <input type="text" id="uploaderName" placeholder="John Doe" required
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Position /
+                        Title</label>
+                    <input type="text" id="uploaderPosition" placeholder="Senior Architect" required
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Phone Number
+                        <span class="text-slate-400 normal-case font-normal">(Auto-formats as you type)</span></label>
+                    <input type="text" id="uploaderPhone" placeholder="(416)555-0192" maxlength="13"
+                        oninput="formatPhoneInput(this)"
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Email Address
+                        *</label>
+                    <input type="email" id="uploaderEmail" placeholder="john.doe@firm.com" required
+                        class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-600">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">Select File
+                        (PDF, PNG, JPG) *</label>
+                    <input type="file" id="blueprintFile" accept=".pdf,.png,.jpg,.jpeg"
+                        class="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                </div>
+            </div>
+            <button onclick="uploadDocument()"
+                class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition shadow-sm">Upload
+                Blueprint</button>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-lg font-semibold text-slate-700 mb-4">Uploaded Blueprints</h2>
+            <div id="document-list" class="divide-y divide-slate-100">
+                <p class="text-slate-400 text-sm py-4 text-center">Loading blueprints...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="inspector-window" aria-live="polite">
             <div class="inspector-header">
-                <h3 id="modalHeaderTitle">Document Inspector: Main Floor HVAC Layout (ID #1)</h3>
+                <h3 id="modalHeaderTitle">Document Inspector</h3>
                 <button class="close-button" onclick="closeModal()" aria-label="Close inspector">×</button>
             </div>
 
             <div class="inspector-body">
                 <aside class="info-panel">
                     <h4 class="panel-title">Document Information</h4>
-                    <div id="docMetaInfo" class="meta-stack">
-                        <div><strong>Title:</strong> Main Floor HVAC Layout</div>
-                        <div><strong>Revision:</strong> Rev 2.4</div>
-                        <div><strong>Uploader:</strong> Elena Rostova (Lead MEP Engineer)</div>
-                        <div><strong>Contact:</strong> <a
-                                href="mailto:elena.rostova@bluepin-engineering.com">elena.rostova@bluepin-engineering.com</a>
-                            • (416)555-0192</div>
-                        <div><strong>Date Added:</strong> 9/16/2026, 10:34:46 PM</div>
-
-                        <div class="section-divider">
-                            <div class="panel-title" style="margin-bottom:12px;">Original Blueprint File</div>
-                            <div class="btn-row">
-                                <a href="#" class="action-btn primary">Open Original Blueprint</a>
-                                <a href="#" class="action-btn success">Download Original Blueprint</a>
-                            </div>
-                        </div>
-
-                        <div class="section-divider">
-                            <div class="revision-box">
-                                <h5>Fixed Revisions</h5>
-                                <div class="revision-list">
-                                    <div class="revision-item">
-                                        <p><strong>Fixed Revision:</strong> Rev 2.5</p>
-                                        <p><strong>File:</strong> bluepin_level1_hvac_rev2.5.pdf</p>
-                                        <p><strong>Comment:</strong> Reviewed supply duct routing near Server Room A.
-                                            The CFM requirements for VAV-1.4 need a minor adjustment to account for the
-                                            updated equipment load. Please review and coordinate with electrical shaft
-                                            clearance.</p>
-                                        <p><strong>Uploaded by:</strong> Marcus Vance (Senior Mechanical Reviewer)</p>
-                                        <p><strong>Contact:</strong> <a
-                                                href="mailto:marcus.vance@bluepin-engineering.com">marcus.vance@bluepin-engineering.com</a>
-                                            • (416)555-0442</p>
-                                        <p><strong>Date Added:</strong> 9/16/2026, 10:45:16 PM</p>
-                                        <div class="small-actions">
-                                            <a href="#" class="mini-btn primary">Open This Fixed Revision</a>
-                                            <a href="#" class="mini-btn success">Download This Fixed Revision</a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="docMetaInfo" class="meta-stack"></div>
                 </aside>
 
                 <section class="comment-panel">
                     <h4 class="panel-title">Add Markup / Comment</h4>
-
                     <div id="commentErrorBox" class="error-box"></div>
-
                     <div class="comment-form">
                         <input type="text" id="commentorName" placeholder="Your Full Name *">
                         <input type="text" id="commentorPosition" placeholder="Your Position *">
@@ -471,23 +504,14 @@
             </div>
 
             <div class="history-shell">
-                <h4 id="historyTitle" class="history-header">Recorded Comments &amp; Revisions History (1)</h4>
+                <h4 id="historyTitle" class="history-header">Recorded Comments &amp; Revisions History</h4>
                 <div id="modalMarkupList" class="history-list">
-                    <div class="history-item">
-                        <div class="history-top">
-                            <div class="history-name">Marcus Vance (Senior Mechanical Reviewer)</div>
-                            <div class="history-date">9/16/2026, 10:45:16 PM</div>
-                        </div>
-                        <p class="history-copy">Reviewed supply duct routing near Server Room A. The CFM requirements
-                            for VAV-1.4 need a minor adjustment to account for the updated equipment load. Please review
-                            and coordinate with electrical shaft clearance.</p>
-                    </div>
+                    <p class="text-slate-400 text-sm p-3">No comments recorded yet.</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Custom In-App Confirmation Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
             <h3 class="text-lg font-bold text-slate-800">Confirm Deletion</h3>
