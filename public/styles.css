@@ -85,13 +85,21 @@ body {
     color: #1f2937;
 }
 
-.meta-stack a {
-    color: #dce1f0;
-    text-decoration: none;
-}
-
-.meta-stack a:hover {
+#docMetaInfo a,
+#docMetaInfo a:visited,
+#docMetaInfo a:hover,
+#docMetaInfo a:focus,
+#modalViewLink,
+#modalViewLink:visited,
+#modalViewLink:hover,
+#modalViewLink:focus,
+#modalDownloadLink,
+#modalDownloadLink:visited,
+#modalDownloadLink:hover,
+#modalDownloadLink:focus {
+    color: #ffffff !important;
     text-decoration: underline;
+    text-underline-offset: 2px;
 }
 
 .comment-panel {
