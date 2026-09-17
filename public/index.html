@@ -361,7 +361,7 @@
                 // Determine the correct file URL for viewing and downloading, handling both absolute and relative paths
                 const fileUrl = data.document.file_url;
                 document.getElementById('modalViewLink').href = fileUrl;
-                document.getElementById('modalDownloadLink').href = fileUrl;
+                document.getElementById('modalDownloadLink').href = `/api/documents/${data.document.id}/download`;
 
                 // Populate the document metadata section in the modal
                 document.getElementById('docMetaInfo').innerHTML = `

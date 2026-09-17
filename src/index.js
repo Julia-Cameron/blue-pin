@@ -181,6 +181,33 @@ app.get('/api/documents', async (_req, res) => {
     }
 });
 
+app.get('/api/documents/:id/download', async (req, res) => {
+    try {
+        const { rows } = await pool.query(
+            'SELECT file_url, file_name FROM documents WHERE id = $1',
+            [req.params.id]
+        );
+        const document = rows[0];
+        if (!document) return res.status(404).json({ message: 'Document not found.' });
+
+        const fileName = document.file_name || `document-${req.params.id}`;
+        if (document.file_url.startsWith('/uploads/')) {
+            return res.download(path.join(localUploadDirectory, path.basename(document.file_url)), fileName);
+        }
+
+        const fileResponse = await fetch(document.file_url);
+        if (!fileResponse.ok) {
+            return res.status(502).json({ message: 'Unable to retrieve the uploaded file.' });
+        }
+
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
+        res.setHeader('Content-Type', fileResponse.headers.get('content-type') || 'application/octet-stream');
+        res.send(Buffer.from(await fileResponse.arrayBuffer()));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 app.get('/api/documents/:id', async (req, res) => {
     try {
         const documentResult = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
