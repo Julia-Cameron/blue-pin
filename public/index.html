@@ -333,9 +333,6 @@
                         .filter((markup) => (markup.parent_id || null) === parentId)
                         .map((markup) => {
                             const children = renderMarkupThread(markups, markup.id, depth + 1);
-                            const fixedVersion = markup.fixed_file_url
-                                ? `<a href="${markup.fixed_file_url}" target="_blank" class="text-blue-600 hover:underline">Open fixed version${markup.fixed_revision ? ` (${escapeHtml(markup.fixed_revision)})` : ''}</a>`
-                                : '';
                             return `
                                 <div class="border-l-4 ${depth ? 'border-blue-200 ml-4' : 'border-slate-300'} pl-3">
                                     <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs space-y-1">
@@ -344,10 +341,6 @@
                                             <span class="text-slate-400 font-normal whitespace-nowrap">${new Date(markup.created_at).toLocaleString()}</span>
                                         </div>
                                         <p class="text-slate-700 text-sm mt-1 whitespace-pre-wrap">${escapeHtml(markup.comment)}</p>
-                                        <div class="flex flex-wrap gap-3 pt-1">
-                                            ${fixedVersion}
-                                            <button onclick="replyToMarkup('${markup.id}')" class="text-xs text-slate-600 hover:text-blue-700 underline">Reply / upload fix</button>
-                                        </div>
                                     </div>
                                     ${children}
                                 </div>`;
@@ -363,17 +356,38 @@
                 document.getElementById('modalViewLink').href = fileUrl;
                 document.getElementById('modalDownloadLink').href = `/api/documents/${data.document.id}/download`;
 
+                const fixedRevisions = (data.markups || []).filter((markup) => markup.fixed_file_url);
+                const fixedRevisionInfo = fixedRevisions.length
+                    ? `<div class="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                        <h5 class="font-semibold text-blue-900 text-sm">Fixed Revisions</h5>
+                        ${fixedRevisions.map((markup) => `
+                            <div class="bg-white p-3 rounded-lg border border-slate-200 text-sm space-y-1">
+                                <p><strong>Revision:</strong> ${escapeHtml(markup.fixed_revision || 'Fixed version')}</p>
+                                <p><strong>Comment:</strong> ${escapeHtml(markup.comment)}</p>
+                                <p><strong>Uploaded by:</strong> ${escapeHtml(markup.commentor_name)} (${escapeHtml(markup.commentor_position || 'Reviewer')})</p>
+                                <p><strong>Contact:</strong> <a href="mailto:${escapeHtml(markup.commentor_email)}" class="text-blue-600 underline">${escapeHtml(markup.commentor_email)}</a>${markup.commentor_phone ? ` • ${escapeHtml(markup.commentor_phone)}` : ''}</p>
+                                <p><strong>Date Added:</strong> ${new Date(markup.created_at).toLocaleString()}</p>
+                                <div class="flex flex-wrap gap-2 pt-2">
+                                    <a href="${markup.fixed_file_url}" target="_blank" rel="noopener" class="inline-block px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg">Open Fixed File</a>
+                                    <a href="/api/documents/${data.document.id}/markups/${markup.id}/download" class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg">Download</a>
+                                </div>
+                            </div>`).join('')}
+                    </div>`
+                    : '';
+
                 // Populate the document metadata section in the modal
                 document.getElementById('docMetaInfo').innerHTML = `
-                    <p><strong>Title:</strong> ${data.document.title}</p>
+                    <p><strong>Title:</strong> ${escapeHtml(data.document.title)}</p>
                     <p><strong>Revision:</strong> ${data.document.revision || 'Rev 1'}</p>
-                    <p><strong>Uploader:</strong> ${data.document.uploader_name} (${data.document.uploader_position || 'Staff'})</p>
-                    <p><strong>Contact:</strong> <a href="mailto:${data.document.uploader_email}" class="text-blue-600 underline">${data.document.uploader_email}</a> • ${data.document.uploader_phone || 'N/A'}</p>
+                    <p><strong>Uploader:</strong> ${escapeHtml(data.document.uploader_name)} (${escapeHtml(data.document.uploader_position || 'Staff')})</p>
+                    <p><strong>Contact:</strong> <a href="mailto:${escapeHtml(data.document.uploader_email)}" class="text-blue-600 underline">${escapeHtml(data.document.uploader_email)}</a> • ${escapeHtml(data.document.uploader_phone || 'N/A')}</p>
                     <p><strong>Date Added:</strong> ${new Date(data.document.created_at).toLocaleString()}</p>
+                    ${fixedRevisionInfo}
                 `;
 
                 //  Render the list of comments and markups in the modal, or show a message if none exist
                 const markupList = document.getElementById('modalMarkupList');
+                document.querySelector('#modalMarkupList').previousElementSibling.innerText = `Recorded Comments & Revisions History (${(data.markups || []).length})`;
                 if (!data.markups || data.markups.length === 0) {
                     markupList.innerHTML = `<p class="text-slate-400 text-sm py-2">No comments or markups recorded for this blueprint yet.</p>`;
                 } else {

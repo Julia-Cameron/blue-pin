@@ -208,6 +208,33 @@ app.get('/api/documents/:id/download', async (req, res) => {
     }
 });
 
+app.get('/api/documents/:documentId/markups/:markupId/download', async (req, res) => {
+    try {
+        const { rows } = await pool.query(
+            'SELECT fixed_file_url, fixed_file_name FROM markups WHERE id = $1 AND document_id = $2',
+            [req.params.markupId, req.params.documentId]
+        );
+        const markup = rows[0];
+        if (!markup?.fixed_file_url) return res.status(404).json({ message: 'Fixed file not found.' });
+
+        const fileName = markup.fixed_file_name || `fixed-document-${req.params.documentId}`;
+        if (markup.fixed_file_url.startsWith('/uploads/')) {
+            return res.download(path.join(localUploadDirectory, path.basename(markup.fixed_file_url)), fileName);
+        }
+
+        const fileResponse = await fetch(markup.fixed_file_url);
+        if (!fileResponse.ok) {
+            return res.status(502).json({ message: 'Unable to retrieve the fixed file.' });
+        }
+
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
+        res.setHeader('Content-Type', fileResponse.headers.get('content-type') || 'application/octet-stream');
+        res.send(Buffer.from(await fileResponse.arrayBuffer()));
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 app.get('/api/documents/:id', async (req, res) => {
     try {
         const documentResult = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
