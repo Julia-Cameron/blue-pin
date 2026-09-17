@@ -89,17 +89,30 @@ body {
 #docMetaInfo a:visited,
 #docMetaInfo a:hover,
 #docMetaInfo a:focus,
-#modalViewLink,
-#modalViewLink:visited,
-#modalViewLink:hover,
-#modalViewLink:focus,
-#modalDownloadLink,
-#modalDownloadLink:visited,
-#modalDownloadLink:hover,
-#modalDownloadLink:focus {
+#detailModal a#modalViewLink,
+#detailModal a#modalViewLink:visited,
+#detailModal a#modalViewLink:hover,
+#detailModal a#modalViewLink:focus,
+#detailModal a#modalDownloadLink,
+#detailModal a#modalDownloadLink:visited,
+#detailModal a#modalDownloadLink:hover,
+#detailModal a#modalDownloadLink:focus {
     color: #ffffff !important;
     text-decoration: underline;
     text-underline-offset: 2px;
+}
+
+#detailModal a#modalViewLink,
+#detailModal a#modalDownloadLink {
+    display: inline-block;
+    color: #ffffff !important;
+    background-color: #2d6cdf !important;
+    border: none;
+    text-decoration: none !important;
+}
+
+#detailModal a#modalDownloadLink {
+    background-color: #1f9d6a !important;
 }
 
 .comment-panel {
