@@ -255,6 +255,35 @@ a[role="button"]:focus {
     overflow: hidden;
 }
 
+/* Keep every actionable button consistent, while allowing each action to retain its color. */
+button:not(.close-button),
+a[role="button"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: center;
+    cursor: pointer;
+}
+
+button:not(.close-button):focus-visible,
+a[role="button"]:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.35);
+    outline-offset: 2px;
+}
+
+.close-button {
+    min-height: 0;
+    padding: 0;
+}
+
 @media (max-width: 920px) {
     .inspector-body {
         grid-template-columns: 1fr;
