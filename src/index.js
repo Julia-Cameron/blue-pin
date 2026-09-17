@@ -62,6 +62,9 @@ const createTables = async () => {
         )
     `);
 
+    await pool.query('ALTER TABLE documents DISABLE ROW LEVEL SECURITY');
+    await pool.query('ALTER TABLE markups DISABLE ROW LEVEL SECURITY');
+
     await pool.query('ALTER TABLE markups ADD COLUMN IF NOT EXISTS parent_id INTEGER');
     await pool.query('ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_name TEXT');
     await pool.query('ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_hash TEXT');
