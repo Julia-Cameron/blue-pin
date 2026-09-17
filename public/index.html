@@ -113,7 +113,8 @@
                 <!-- Document Info & Preview -->
                 <div class="space-y-4 bg-slate-50 p-4 rounded-xl border">
                     <h4 class="font-semibold text-blue-900 text-sm uppercase tracking-wide">Document Information</h4>
-                    <div id="docMetaInfo" class="text-sm space-y-1 text-slate-700"></div>
+                    <div id="docMetaInfo" class="text-sm space-y-1 text-slate-700 max-h-[60vh] overflow-y-auto pr-1">
+                    </div>
                     <div>
                         <a id="modalViewLink" href="#" target="_blank"
                             class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition mr-2">Open
@@ -164,7 +165,7 @@
             <div>
                 <h4 class="text-sm font-semibold text-slate-700 mb-3">Recorded Comments & Revisions History</h4>
                 <div id="modalMarkupList"
-                    class="space-y-3 bg-white border border-slate-200 rounded-xl p-3 max-h-80 overflow-y-auto shadow-inner">
+                    class="space-y-3 bg-white border border-slate-200 rounded-xl p-3 max-h-[36vh] overflow-y-auto shadow-inner">
                     <p class="text-slate-400 text-sm">No comments recorded yet.</p>
                 </div>
             </div>
@@ -360,18 +361,20 @@
                 const fixedRevisionInfo = fixedRevisions.length
                     ? `<div class="mt-4 pt-4 border-t border-slate-200 space-y-3">
                         <h5 class="font-semibold text-blue-900 text-sm">Fixed Revisions</h5>
+                        <div class="space-y-3 max-h-[36vh] overflow-y-auto pr-1">
                         ${fixedRevisions.map((markup) => `
-                            <div class="bg-white p-3 rounded-lg border border-slate-200 text-sm space-y-1">
+                            <div class="bg-white p-3 rounded-lg border border-slate-200 text-sm space-y-1 flex flex-col">
                                 <p><strong>Revision:</strong> ${escapeHtml(markup.fixed_revision || 'Fixed version')}</p>
                                 <p><strong>Comment:</strong> ${escapeHtml(markup.comment)}</p>
                                 <p><strong>Uploaded by:</strong> ${escapeHtml(markup.commentor_name)} (${escapeHtml(markup.commentor_position || 'Reviewer')})</p>
                                 <p><strong>Contact:</strong> <a href="mailto:${escapeHtml(markup.commentor_email)}" class="text-blue-600 underline">${escapeHtml(markup.commentor_email)}</a>${markup.commentor_phone ? ` • ${escapeHtml(markup.commentor_phone)}` : ''}</p>
                                 <p><strong>Date Added:</strong> ${new Date(markup.created_at).toLocaleString()}</p>
-                                <div class="flex flex-wrap gap-2 pt-2">
+                                <div class="flex flex-wrap gap-2 pt-3 mt-auto">
                                     <a href="${markup.fixed_file_url}" target="_blank" rel="noopener" class="inline-block px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg">Open Fixed File</a>
                                     <a href="/api/documents/${data.document.id}/markups/${markup.id}/download" class="inline-block px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg">Download</a>
                                 </div>
                             </div>`).join('')}
+                        </div>
                     </div>`
                     : '';
 
